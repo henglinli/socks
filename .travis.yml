@@ -1,0 +1,9 @@
+language: erlang
+otp_release:
+  - 19.2
+  - 18.3
+  - 17.5
+  script:
+    - rebar3 ct
+    - rebar3 tar
+    
