@@ -1,0 +1,22 @@
+{application, socks,
+ [{description, "An SOCKS5 OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {socks_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[{port, 1080},
+        {listen, [{reuseaddr, true}, {mode, binary}]}
+       ]},
+  {modules, [socks_app,
+             socks_sup,
+             socks_listener,
+             socks_server_sup,
+             socks_server,
+             socks]},
+  {maintainers, ['henglinli@gmail.com']},
+  {licenses, []},
+  {links, []}
+ ]}.
