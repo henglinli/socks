@@ -9,9 +9,10 @@
 -module(socks_server_sup).
 
 -behaviour(supervisor).
-
+%
+-author('henglinli@gmail.com').
 %% API
--export([start_link/0, start_child/1]).
+-export([start_link/1, start_child/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -29,10 +30,10 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
--spec start_link() -> supervisor:startlink_ret().
+-spec start_link(list()) -> supervisor:startlink_ret().
 %%
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link(Opts) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, Opts).
 %%
 -spec start_child(inet:socket()) ->
                          supervisor:startchild_ret().
@@ -56,12 +57,12 @@ start_child(Server) ->
 %%                     {error, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
+init(Opts) ->
     SupFlags = #{strategy => simple_one_for_one,
                  intensity => 1,
                  period => 5},
     Child = #{id => socks_server,
-              start => {socks_server, start_link, []},
+              start => {socks_server, start_link, [Opts]},
               shutdown => brutal_kill},
     {ok, {SupFlags, [Child]}}.
 %%%===================================================================

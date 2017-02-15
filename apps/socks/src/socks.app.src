@@ -9,6 +9,7 @@
    ]},
   {env,[{port, 1080},
         {listen, [{reuseaddr, true}, {mode, binary}]}
+        %%,{auth, [{"admin", "admin"}]}
        ]},
   {modules, [socks_app,
              socks_sup,

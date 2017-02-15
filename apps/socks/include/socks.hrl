@@ -8,10 +8,11 @@
 %%%-------------------------------------------------------------------
 -define(VERSION, 16#5).
 %%
--define(HELLO_NO_AUTHENTICATION, 16#0).
--define(HELLO_NOT_ACCEPTED, 16#ff).
-%%
 -define(RESERVED, 16#0).
+%% methods
+-define(METHOD_NONE, 16#0).
+-define(METHOD_PASSWORD, 16#2).
+-define(METHOD_UNACCEPT, 16#ff).
 %%
 -define(CMD_CONNECT, 16#1).
 -define(CMD_BIND, 16#2).
@@ -31,4 +32,5 @@
 -define(REP_UNKNOWN_COMMAND, 16#7).
 -define(REP_UNKNOWN_ATYP, 16#8).
 -define(REP_UNDEFINED, 16#9).
-
+%% auth
+-define(AUTH_VER, 16#1).

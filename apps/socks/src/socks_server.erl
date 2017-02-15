@@ -14,17 +14,18 @@
 -behaviour(gen_statem).
 -behaviour(socks_listener).
 %% API
--export([new_connection/1, start_link/1]).
+-export([new_connection/1, start_link/2]).
 %% gen_statem callbacks
 -export([init/1, terminate/3, code_change/4, callback_mode/0]).
--export([handshake/3, command/3, proxy/3]).
+-export([handshake/3, auth/3, command/3, proxy/3]).
 %%
 -define(SERVER, ?MODULE).
 -define(N, 64).
 -define(OPTS, [{active, ?N}, {delay_send, true}]).
 %%
 -record(data, {server :: inet:socket(),
-               client :: null | inet:socket()}).
+               client :: undefined | inet:socket(),
+               auth :: undefined | module()}).
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -62,10 +63,11 @@ new_connection(Server) ->
     end.
 -endif.
 %%
--spec start_link(inet:socket()) -> gen_statem:startlink_ret().
+-spec start_link(undefined | module(), inet:socket()) ->
+                        gen_statem:startlink_ret().
 %%
-start_link(Server) ->
-    gen_statem:start(?SERVER, Server, []).
+start_link(Mod, Server) ->
+    gen_statem:start(?SERVER, {Mod, Server}, []).
 %%%===================================================================
 %%% gen_statem callbacks
 %%%===================================================================
@@ -77,18 +79,18 @@ start_link(Server) ->
 %% process to initialize.
 %% @end
 %%--------------------------------------------------------------------
--spec init(Args :: term()) ->
+-spec init(Args :: tuple()) ->
                   ignore | {stop, Reason :: term()} |
                   {ok, State :: term(), Data :: term()} |
                   {ok, State :: term(), Data :: term(),
                    [gen_statem:action()] | gen_statem:action()}.
 %%
-init(Server) ->
+init({Mod, Server}) ->
     %%false = process_flag(trap_exit, true),
     case inet:setopts(Server, ?OPTS) of
         ok ->
             {ok, handshake,
-             #data{server = Server, client = null}};
+             #data{server = Server, client = undefined, auth = Mod}};
         {error, Reason} ->
             {stop, Reason}
     end.
@@ -106,17 +108,55 @@ init(Server) ->
 -spec handshake(gen_statem:event_type(), term(), #data{}) ->
                        gen_statem:state_function_result().
 %%
-handshake(info, {tcp, Socket, Packet}, Data) ->
-    case socks:parse_version(Packet) of
+handshake(info, {tcp, Socket, Packet}, #data{auth = Auth} = Data) ->
+    case socks:parse_methods(Packet) of
         error ->
-            Reply = socks:unaccept(),
+            Reply = socks:new_unaccept(),
             gen_tcp:send(Socket, Reply),
             stop;
-        {_N, _Methods} ->
-            skip_methods(Socket, Data)
+        MethodSet ->
+            case Auth of
+                undefined ->
+                    Reply = socks:new_noauth(),
+                    NextState = {next_state, command, Data},
+                    send(Socket, Reply, NextState);
+                _Mod ->
+                    case socks:have_auth(MethodSet) of
+                        true ->
+                            Reply = socks:new_auth(),
+                            NextState = {next_state, auth, Data},
+                            send(Socket, Reply, NextState);
+                        _Others ->
+                            Reply = socks:new_unaccept(),
+                            gen_tcp:send(Socket, Reply),
+                            stop
+                    end
+            end
     end;
 %%
 handshake(EventType, EventContent, _Data) ->
+    check(EventType, EventContent).
+%%
+auth(info, {tcp, Socket, Packet}, #data{auth = Mod} = Data) ->
+    case socks:parse_auth(Packet) of
+        {_User, _Password} = Msg->
+            case Mod:call(Msg) of
+                ok ->
+                    Reply = socks:new_success(),
+                    NextState = {next_state, command, Data},
+                    send(Socket, Reply, NextState);
+                _Others ->
+                    Reply = socks:new_failure(),
+                    gen_tcp:send(Socket, Reply),
+                    stop
+            end;
+        _Others ->
+            Reply = socks:new_unaccept(),
+            gen_tcp:send(Socket, Reply),
+            stop
+    end;
+%%
+auth(EventType, EventContent, _Data) ->
     check(EventType, EventContent).
 %%%===================================================================
 -spec command(gen_statem:event_type(), term(), #data{}) ->
@@ -127,8 +167,7 @@ command(info, {tcp, Socket, Packet}, Data) ->
             Parser = parser(ATYP),
             case connect(Parser, Address) of
                 {ok, Client} ->
-                    Reply = socks:reply(?REP_SUCCESS,
-                                        {0,0,0,0}, 0),
+                    Reply = socks:new_ipv4(?REP_SUCCESS),
                     NextState = {next_state, proxy,
                                  Data#data{client = Client}},
                     send(Socket, Reply, NextState);
@@ -209,17 +248,8 @@ check({call, Caller}, _Msg) ->
 check(_EventType, _Msg) ->
     keep_state_and_data.
 %%%===================================================================
-skip_methods(Socket, Data) ->
-    Noauth = socks:noauth(),
-    case gen_tcp:send(Socket, Noauth) of
-        ok ->
-            {next_state, command, Data};
-        _Others ->
-            stop
-    end.
-%%%===================================================================
 disallow(Socket) ->
-    Reply = socks:reply(?REP_DISALLOWED, {0,0,0,0}, 0),
+    Reply = socks:new_ipv4(?REP_DISALLOWED),
     gen_tcp:send(Socket, Reply),
     stop.
 %%
@@ -238,7 +268,7 @@ connect(Parser, Address) ->
         Others ->
             Others
     end.
-%%
+%%%===================================================================
 parser(ATYP) ->
     case ATYP of
         ?ATYP_IPV4 ->
