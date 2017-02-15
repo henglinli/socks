@@ -106,7 +106,7 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [parse_methods, parse_version].
+    [parse_methods].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase() -> Info
@@ -114,8 +114,6 @@ all() ->
 %% @end
 %%--------------------------------------------------------------------
 parse_methods() ->
-    [].
-parse_version() ->
     [].
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -127,22 +125,11 @@ parse_version() ->
 %% @end
 %%--------------------------------------------------------------------
 parse_methods(_Config) ->
-    {MethodSet, Last} = socks:parse_methods(<<"google">>, 5),
-    true = sets:is_element($g, MethodSet),
-    case 4 == sets:size(MethodSet) of
-        false ->
-            {comment, "sets:size error"};
+    error = socks:parse_methods(<<"google">>),
+    Set = socks:parse_methods(<<5, 2, 0, 1>>),
+    case Set of
+        error ->
+            exit;
         _ ->
-            case <<"e">> =:= Last of
-                true ->
-                    ok;
-                _ ->
-                    {comment, "Last error"}
-            end
+            ok
     end.
-parse_version(_Config) ->
-    error = socks:parse_version(<<"google">>),
-    Version = <<5:8/big-unsigned-integer, 5:8/big-unsigned-integer,
-                "hello">>,
-    {5, <<"hello">>} = socks:parse_version(Version),
-    ok.
