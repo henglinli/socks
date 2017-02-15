@@ -79,12 +79,6 @@ start_link(Mod, Server) ->
 %% process to initialize.
 %% @end
 %%--------------------------------------------------------------------
--spec init(Args :: tuple()) ->
-                  ignore | {stop, Reason :: term()} |
-                  {ok, State :: term(), Data :: term()} |
-                  {ok, State :: term(), Data :: term(),
-                   [gen_statem:action()] | gen_statem:action()}.
-%%
 init({Mod, Server}) ->
     %%false = process_flag(trap_exit, true),
     case inet:setopts(Server, ?OPTS) of
@@ -226,7 +220,7 @@ terminate(_Reason, _State, #data{server = Server}) ->
                           NewState :: term(), NewData :: term()} |
                          (Reason :: term()).
 code_change(_OldVsn, State, Data, _Extra) ->
-    {state_functions, State, Data}.
+    {ok, State, Data}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
