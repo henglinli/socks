@@ -214,11 +214,6 @@ terminate(_Reason, _State, #data{server = Server}) ->
 %% Convert process state when code is changed
 %% @end
 %%--------------------------------------------------------------------
--spec code_change(OldVsn :: term() | {down,term()},
-                  State :: term(), Data :: term(), Extra :: term()) ->
-                         {gen_statem:callback_mode(),
-                          NewState :: term(), NewData :: term()} |
-                         (Reason :: term()).
 code_change(_OldVsn, State, Data, _Extra) ->
     {ok, State, Data}.
 %%%===================================================================
