@@ -18,6 +18,6 @@
              socks_server,
              socks]},
   {maintainers, ['henglinli@gmail.com']},
-  {licenses, []},
-  {links, []}
+  {licenses, ["BSD-3-Clause"]},
+  {links, [{"Github", "https://github.com/henglinli/socks"}]}
  ]}.
